@@ -15,6 +15,8 @@
 package html
 
 import (
+	"strings"
+
 	"github.com/blevesearch/bleve/registry"
 	"github.com/blevesearch/bleve/search/highlight"
 )
@@ -37,7 +39,7 @@ func NewFragmentFormatter(before, after string) *FragmentFormatter {
 }
 
 func (a *FragmentFormatter) Format(f *highlight.Fragment, orderedTermLocations highlight.TermLocations) string {
-	rv := ""
+	var rv strings.Builder
 	curr := f.Start
 	for _, termLocation := range orderedTermLocations {
 		if termLocation == nil {
@@ -54,20 +56,20 @@ func (a *FragmentFormatter) Format(f *highlight.Fragment, orderedTermLocations h
 			break
 		}
 		// add the stuff before this location
-		rv += string(f.Orig[curr:termLocation.Start])
+		rv.Write(f.Orig[curr:termLocation.Start])
 		// add the color
-		rv += a.before
+		rv.WriteString(a.before)
 		// add the term itself
-		rv += string(f.Orig[termLocation.Start:termLocation.End])
+		rv.Write(f.Orig[termLocation.Start:termLocation.End])
 		// reset the color
-		rv += a.after
+		rv.WriteString(a.after)
 		// update current
 		curr = termLocation.End
 	}
 	// add any remaining text after the last token
-	rv += string(f.Orig[curr:f.End])
+	rv.Write(f.Orig[curr:f.End])
 
-	return rv
+	return rv.String()
 }
 
 func Constructor(config map[string]interface{}, cache *registry.Cache) (highlight.FragmentFormatter, error) {

@@ -41,8 +41,12 @@ type DocumentMatchHandler func(hit *DocumentMatch) error
 
 type MakeDocumentMatchHandlerKeyType string
 
-var MakeDocumentMatchHandlerKey = MakeDocumentMatchHandlerKeyType(
-	"MakeDocumentMatchHandlerKey")
+var (
+	MakeDocumentMatchHandlerKey = MakeDocumentMatchHandlerKeyType(
+		"MakeDocumentMatchHandlerKey")
+	MakeDocumentMatchHandlerSkipKey = MakeDocumentMatchHandlerKeyType(
+		"MakeDocumentMatchHandlerSkipKey")
+)
 
 // MakeDocumentMatchHandler is an optional DocumentMatchHandler
 // builder function which the applications can pass to bleve.

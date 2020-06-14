@@ -15,6 +15,7 @@
 package search
 
 import (
+	"context"
 	"fmt"
 	"reflect"
 	"sort"
@@ -357,6 +358,7 @@ type SearcherOptions struct {
 
 // SearchContext represents the context around a single search
 type SearchContext struct {
+	RootContext       context.Context
 	DocumentMatchPool *DocumentMatchPool
 	Collector         Collector
 	IndexReader       index.IndexReader

@@ -16,6 +16,7 @@ package collector
 
 import (
 	"context"
+	"errors"
 	"reflect"
 	"time"
 
@@ -158,6 +159,7 @@ func (hc *TopNCollector) Collect(ctx context.Context, searcher search.Searcher, 
 		DocumentMatchPool: search.NewDocumentMatchPool(backingSize+searcher.DocumentMatchPoolSize(), len(hc.sort)),
 		Collector:         hc,
 		IndexReader:       reader,
+		RootContext:       ctx,
 	}
 
 	hc.dvReader, err = reader.DocValueReader(hc.neededFields)
@@ -278,6 +280,11 @@ func MakeTopNDocumentMatchHandler(
 	var hc *TopNCollector
 	var ok bool
 	if hc, ok = ctx.Collector.(*TopNCollector); ok {
+		var skip bool
+		if cv := ctx.RootContext.Value(search.MakeDocumentMatchHandlerSkipKey); cv != nil {
+			skip = true
+		}
+
 		return func(d *search.DocumentMatch) error {
 			if d == nil {
 				return nil
@@ -320,6 +327,10 @@ func MakeTopNDocumentMatchHandler(
 						hc.lowestMatchOutsideResults = removed
 						ctx.DocumentMatchPool.Put(tmp)
 					}
+				}
+
+				if skip {
+					return errors.New("doc skip")
 				}
 			}
 			return nil

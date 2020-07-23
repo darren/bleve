@@ -175,11 +175,69 @@ func (i *indexAliasImpl) StreamInContext(ctx context.Context, req *SearchRequest
 		return nil, ErrorAliasEmpty
 	}
 
-	// short circuit the simple case
 	if len(i.indexes) >= 1 {
-		return i.indexes[0].StreamInContext(ctx, req)
+		dc := make([]chan *search.DocumentMatch, 0, len(i.indexes))
+		for _, idx := range i.indexes {
+			sr, err := idx.StreamInContext(ctx, req)
+			if err == nil {
+				dc = append(dc, sr.Hits)
+			}
+		}
+
+		if len(dc) == 0 {
+			return nil, errors.New("No index is available")
+		}
+
+		return &StreamResult{
+			Status: &SearchStatus{
+				Total:      len(i.indexes),
+				Successful: len(dc),
+			},
+			Request: req,
+			Hits:    mergeHits(dc),
+		}, nil
+
 	}
 	return nil, errors.New("No index to search")
+}
+
+func combineHits(a, b chan *search.DocumentMatch) chan *search.DocumentMatch {
+	c := make(chan *search.DocumentMatch)
+
+	go func() {
+		defer close(c)
+		for a != nil || b != nil {
+			select {
+			case v, ok := <-a:
+				if !ok {
+					a = nil
+					continue
+				}
+				c <- v
+			case v, ok := <-b:
+				if !ok {
+					b = nil
+					continue
+				}
+				c <- v
+			}
+		}
+	}()
+	return c
+}
+
+func mergeHits(hits []chan *search.DocumentMatch) chan *search.DocumentMatch {
+	switch len(hits) {
+	case 0:
+		c := make(chan *search.DocumentMatch)
+		close(c)
+		return c
+	case 1:
+		return hits[0]
+	default:
+		i := len(hits) / 2
+		return combineHits(mergeHits(hits[:i]), mergeHits(hits[i:]))
+	}
 }
 
 func (i *indexAliasImpl) Fields() ([]string, error) {

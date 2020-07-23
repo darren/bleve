@@ -649,7 +649,7 @@ func (i *indexImpl) StreamInContext(ctx context.Context, req *SearchRequest) (sr
 		}
 	}
 
-	coll := collector.NewStreamCollector(req.Size, func(hit *search.DocumentMatch) error {
+	coll := collector.NewStreamCollector(func(hit *search.DocumentMatch) error {
 		return LoadAndHighlightFields(hit, req, i.name, indexReader, highlighter)
 	})
 

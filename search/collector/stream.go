@@ -53,7 +53,7 @@ func (sc *StreamCollector) Collect(
 		next, err = searcher.Next(searchContext)
 	}
 
-	if err != nil {
+	if err != nil || next == nil {
 		close()
 		return results, err
 	}

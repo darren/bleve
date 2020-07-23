@@ -39,7 +39,6 @@ func (sc *StreamCollector) Collect(
 	searchContext := &search.SearchContext{
 		DocumentMatchPool: search.NewDocumentMatchPool(searcher.DocumentMatchPoolSize(), 0),
 		IndexReader:       reader,
-		RootContext:       ctx,
 	}
 
 	close := func() {

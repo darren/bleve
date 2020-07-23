@@ -64,6 +64,7 @@ func (sc *StreamCollector) Collect(
 			return nil, err
 		}
 	}
+	next.Complete(nil)
 	sc.proc(next)
 
 	go func() {
@@ -91,6 +92,8 @@ func (sc *StreamCollector) Collect(
 						return
 					}
 				}
+
+				next.Complete(nil)
 
 				err = sc.proc(next)
 				if err != nil {

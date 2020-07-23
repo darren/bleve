@@ -11,16 +11,14 @@ import (
 
 // StreamCollector is streaming search collector
 type StreamCollector struct {
-	limit   int
 	results chan *search.DocumentMatch
 	proc    func(*search.DocumentMatch) error
 }
 
 // NewStreamCollector create a streaming collector
-func NewStreamCollector(limit int, proc func(*search.DocumentMatch) error) *StreamCollector {
+func NewStreamCollector(proc func(*search.DocumentMatch) error) *StreamCollector {
 	return &StreamCollector{
-		limit: limit,
-		proc:  proc,
+		proc: proc,
 	}
 }
 
@@ -77,9 +75,6 @@ func (sc *StreamCollector) Collect(
 		}()
 		i := 1
 		for {
-			if sc.limit > 0 && i > sc.limit {
-				break
-			}
 			select {
 			case <-ctx.Done():
 				return

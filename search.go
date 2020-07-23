@@ -268,6 +268,7 @@ func (h *HighlightRequest) AddField(field string) {
 // A special field named "*" can be used to return all fields.
 type SearchRequest struct {
 	Query            query.Query       `json:"query"`
+	Streaming        bool              `json:"streaming"`
 	Size             int               `json:"size"`
 	From             int               `json:"from"`
 	Highlight        *HighlightRequest `json:"highlight"`
@@ -479,6 +480,41 @@ func (ss *SearchStatus) Merge(other *SearchStatus) {
 	}
 }
 
+// Scanner is a SearchResult scanner
+type Scanner interface {
+	Next() bool
+	Hit() *search.DocumentMatch
+	Err() error
+	TotalHit() int64
+}
+
+// A StreamResult describes the results of executing
+// a Streamed SearchRequest.
+type StreamResult struct {
+	Status  *SearchStatus              `json:"status"`
+	Request *SearchRequest             `json:"request"`
+	Hits    chan *search.DocumentMatch `json:"-"`
+
+	hit *search.DocumentMatch
+}
+
+func (sr *StreamResult) Next() (ok bool) {
+	sr.hit, ok = <-sr.Hits
+	return ok
+}
+
+func (sr *StreamResult) Hit() *search.DocumentMatch {
+	return sr.hit
+}
+
+func (sr *StreamResult) Err() error {
+	return nil
+}
+
+func (sr *StreamResult) TotalHit() int64 {
+	return -1
+}
+
 // A SearchResult describes the results of executing
 // a SearchRequest.
 type SearchResult struct {
@@ -489,6 +525,26 @@ type SearchResult struct {
 	MaxScore float64                        `json:"max_score"`
 	Took     time.Duration                  `json:"took"`
 	Facets   search.FacetResults            `json:"facets"`
+
+	i int
+}
+
+func (sr *SearchResult) Next() bool {
+	return sr.i < len(sr.Hits)
+}
+
+func (sr *SearchResult) Hit() *search.DocumentMatch {
+	hit := sr.Hits[sr.i]
+	sr.i++
+	return hit
+}
+
+func (sr *SearchResult) Err() error {
+	return nil
+}
+
+func (sr *SearchResult) TotalHit() int64 {
+	return int64(sr.Total)
 }
 
 func (sr *SearchResult) Size() int {

@@ -16,6 +16,7 @@ package bleve
 
 import (
 	"context"
+	"errors"
 	"sort"
 	"sync"
 	"time"
@@ -160,6 +161,25 @@ func (i *indexAliasImpl) SearchInContext(ctx context.Context, req *SearchRequest
 	}
 
 	return MultiSearch(ctx, req, i.indexes...)
+}
+
+func (i *indexAliasImpl) StreamInContext(ctx context.Context, req *SearchRequest) (*StreamResult, error) {
+	i.mutex.RLock()
+	defer i.mutex.RUnlock()
+
+	if !i.open {
+		return nil, ErrorIndexClosed
+	}
+
+	if len(i.indexes) < 1 {
+		return nil, ErrorAliasEmpty
+	}
+
+	// short circuit the simple case
+	if len(i.indexes) >= 1 {
+		return i.indexes[0].StreamInContext(ctx, req)
+	}
+	return nil, errors.New("No index to search")
 }
 
 func (i *indexAliasImpl) Fields() ([]string, error) {

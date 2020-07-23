@@ -369,6 +369,12 @@ func (i *indexImpl) Search(req *SearchRequest) (sr *SearchResult, err error) {
 	return i.SearchInContext(context.Background(), req)
 }
 
+// Stream executes a streamed search request operation.
+// Returns a StreamResult object or an error.
+func (i *indexImpl) Stream(req *SearchRequest) (sr *StreamResult, err error) {
+	return i.StreamInContext(context.Background(), req)
+}
+
 var documentMatchEmptySize int
 var searchContextEmptySize int
 var facetResultEmptySize int
@@ -596,6 +602,69 @@ func (i *indexImpl) SearchInContext(ctx context.Context, req *SearchRequest) (sr
 		MaxScore: coll.MaxScore(),
 		Took:     searchDuration,
 		Facets:   coll.FacetResults(),
+	}, nil
+}
+
+// StreamInContext executes a streamed search request operation within the provided
+// Context. Returns a StreamResult object or an error.
+func (i *indexImpl) StreamInContext(ctx context.Context, req *SearchRequest) (sr *StreamResult, err error) {
+	i.mutex.RLock()
+	defer i.mutex.RUnlock()
+
+	if !i.open {
+		return nil, ErrorIndexClosed
+	}
+
+	// open a reader for this search
+	indexReader, err := i.i.Reader()
+	if err != nil {
+		return nil, fmt.Errorf("error opening index reader %v", err)
+	}
+
+	searcher, err := req.Query.Searcher(indexReader, i.m, search.SearcherOptions{
+		Explain:            req.Explain,
+		IncludeTermVectors: req.IncludeLocations || req.Highlight != nil,
+		Score:              req.Score,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	var highlighter highlight.Highlighter
+
+	if req.Highlight != nil {
+		// get the right highlighter
+		highlighter, err = Config.Cache.HighlighterNamed(Config.DefaultHighlighter)
+		if err != nil {
+			return nil, err
+		}
+		if req.Highlight.Style != nil {
+			highlighter, err = Config.Cache.HighlighterNamed(*req.Highlight.Style)
+			if err != nil {
+				return nil, err
+			}
+		}
+		if highlighter == nil {
+			return nil, fmt.Errorf("no highlighter named `%s` registered", *req.Highlight.Style)
+		}
+	}
+
+	coll := collector.NewStreamCollector(req.Size, func(hit *search.DocumentMatch) error {
+		return LoadAndHighlightFields(hit, req, i.name, indexReader, highlighter)
+	})
+
+	hits, err := coll.Collect(ctx, searcher, indexReader)
+	if err != nil {
+		return nil, err
+	}
+
+	return &StreamResult{
+		Status: &SearchStatus{
+			Total:      1,
+			Successful: 1,
+		},
+		Request: req,
+		Hits:    hits,
 	}, nil
 }
 

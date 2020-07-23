@@ -223,6 +223,9 @@ type Index interface {
 	Search(req *SearchRequest) (*SearchResult, error)
 	SearchInContext(ctx context.Context, req *SearchRequest) (*SearchResult, error)
 
+	Stream(req *SearchRequest) (*StreamResult, error)
+	StreamInContext(ctx context.Context, req *SearchRequest) (*StreamResult, error)
+
 	Fields() ([]string, error)
 
 	FieldDict(field string) (index.FieldDict, error)

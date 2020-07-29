@@ -79,8 +79,8 @@ func (sc *StreamCollector) Collect(
 			select {
 			case <-ctx.Done():
 				return
-			default:
-				results <- next
+
+			case results <- next:
 				next, err = searcher.Next(searchContext)
 				if err != nil || next == nil {
 					return
@@ -99,8 +99,8 @@ func (sc *StreamCollector) Collect(
 				if err != nil {
 					return
 				}
+				i++
 			}
-			i++
 		}
 	}()
 

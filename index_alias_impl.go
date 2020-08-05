@@ -17,6 +17,7 @@ package bleve
 import (
 	"context"
 	"errors"
+	"fmt"
 	"sort"
 	"sync"
 	"time"
@@ -175,17 +176,20 @@ func (i *indexAliasImpl) StreamInContext(ctx context.Context, req *SearchRequest
 		return nil, ErrorAliasEmpty
 	}
 
+	var err error
 	if len(i.indexes) >= 1 {
 		dc := make([]chan *search.DocumentMatch, 0, len(i.indexes))
 		for _, idx := range i.indexes {
-			sr, err := idx.StreamInContext(ctx, req)
-			if err == nil {
+			sr, ierr := idx.StreamInContext(ctx, req)
+			if ierr == nil {
 				dc = append(dc, sr.Hits)
+			} else {
+				err = ierr
 			}
 		}
 
 		if len(dc) == 0 {
-			return nil, errors.New("No index is available")
+			return nil, fmt.Errorf("No index is available, last error: %w", err)
 		}
 
 		return &StreamResult{

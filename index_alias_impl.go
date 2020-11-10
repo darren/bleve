@@ -210,20 +210,27 @@ func combineHits(ctx context.Context, a, b chan *search.DocumentMatch) chan *sea
 
 	go func() {
 		defer close(c)
+		var v *search.DocumentMatch
+		var ok bool
+
 		for a != nil || b != nil {
 			select {
-			case v, ok := <-a:
+			case v, ok = <-a:
 				if !ok {
 					a = nil
 					continue
 				}
-				c <- v
-			case v, ok := <-b:
+			case v, ok = <-b:
 				if !ok {
 					b = nil
 					continue
 				}
-				c <- v
+			case <-ctx.Done():
+				return
+			}
+			select {
+			case c <- v:
+				// sent result
 			case <-ctx.Done():
 				return
 			}

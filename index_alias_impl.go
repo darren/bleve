@@ -198,14 +198,14 @@ func (i *indexAliasImpl) StreamInContext(ctx context.Context, req *SearchRequest
 				Successful: len(dc),
 			},
 			Request: req,
-			Hits:    mergeHits(dc),
+			Hits:    mergeHits(ctx, dc),
 		}, nil
 
 	}
 	return nil, errors.New("No index to search")
 }
 
-func combineHits(a, b chan *search.DocumentMatch) chan *search.DocumentMatch {
+func combineHits(ctx context.Context, a, b chan *search.DocumentMatch) chan *search.DocumentMatch {
 	c := make(chan *search.DocumentMatch)
 
 	go func() {
@@ -224,13 +224,15 @@ func combineHits(a, b chan *search.DocumentMatch) chan *search.DocumentMatch {
 					continue
 				}
 				c <- v
+			case <-ctx.Done():
+				return
 			}
 		}
 	}()
 	return c
 }
 
-func mergeHits(hits []chan *search.DocumentMatch) chan *search.DocumentMatch {
+func mergeHits(ctx context.Context, hits []chan *search.DocumentMatch) chan *search.DocumentMatch {
 	switch len(hits) {
 	case 0:
 		c := make(chan *search.DocumentMatch)
@@ -240,7 +242,7 @@ func mergeHits(hits []chan *search.DocumentMatch) chan *search.DocumentMatch {
 		return hits[0]
 	default:
 		i := len(hits) / 2
-		return combineHits(mergeHits(hits[:i]), mergeHits(hits[i:]))
+		return combineHits(ctx, mergeHits(ctx, hits[:i]), mergeHits(ctx, hits[i:]))
 	}
 }
 
